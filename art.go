@@ -7,6 +7,8 @@
 // "A Fast Free Multibit Trie Based Routing Table".
 //
 // See https://www.hariguchi.org/art/art.pdf.
+//
+// Warning: this is a work-in-progress; see https://github.com/bradfitz/art#status
 package art
 
 func baseIndex(width int, addr uint64, prefixLen int) uint64 {
