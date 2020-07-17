@@ -9,12 +9,12 @@
 // See https://www.hariguchi.org/art/art.pdf.
 package art
 
-func BaseIndex(width int, addr uint64, prefixLen int) uint64 {
+func baseIndex(width int, addr uint64, prefixLen int) uint64 {
 	return (addr >> uint64(width-prefixLen)) + (1 << uint64(prefixLen))
 }
 
-func FringeIndex(width int, addr uint64) uint64 {
-	return BaseIndex(width, addr, width)
+func fringeIndex(width int, addr uint64) uint64 {
+	return baseIndex(width, addr, width)
 }
 
 type Route interface {
@@ -47,11 +47,16 @@ func (x Table) allot(smallestFringeIndex uint64, b uint64, q, r Route) {
 // (It returns false if it was already occupied).
 func (x Table) InsertSingleLevel(r Route) bool {
 	a, l := r.Addr(), r.PrefixLen()
-	b := BaseIndex(r.Width(), a, l)
+	b := baseIndex(r.Width(), a, l)
 	xb := x[b]
 	if xb != nil && a == xb.Addr() && l == xb.PrefixLen() {
 		return false // already occupied
 	}
 	x.allot(uint64(1)<<r.Width(), b, xb, r)
 	return true
+}
+
+func (x Table) LookupSingleLevel(width int, addr uint64) (r Route, ok bool) {
+	r = x[fringeIndex(width, addr)]
+	return r, r != nil
 }

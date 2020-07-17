@@ -32,8 +32,8 @@ func TestBaseIndex(t *testing.T) {
 		{4, 15, 4, 31},
 	}
 	for _, tt := range tests {
-		if got := BaseIndex(tt.w, tt.a, tt.l); got != tt.want {
-			t.Errorf("BaseIndex(%v, %v, %v) = %v; want %v", tt.w, tt.a, tt.l, got, tt.want)
+		if got := baseIndex(tt.w, tt.a, tt.l); got != tt.want {
+			t.Errorf("baseIndex(%v, %v, %v) = %v; want %v", tt.w, tt.a, tt.l, got, tt.want)
 		}
 	}
 }
@@ -88,5 +88,41 @@ func TestInsertSingleLevel(t *testing.T) {
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("wrong after 3rd step\n got: %v\nwant: %v\n", x, want)
+	}
+}
+
+// testTable returns the example table set up before section 2.1.2 of the paper.
+func testTable() Table {
+	x := make(Table, 32)
+	x.InsertSingleLevel(route4b{12, 2})
+	x.InsertSingleLevel(route4b{14, 3})
+	x.InsertSingleLevel(route4b{8, 1})
+	return x
+}
+
+func TestLookup(t *testing.T) {
+	x := testTable()
+	for _, tt := range []struct {
+		addr uint64
+		want Route
+	}{
+		{0, nil},
+		{1, nil},
+		// ...
+		{6, nil},
+		{7, nil},
+		{8, route4b{8, 1}},
+		{9, route4b{8, 1}},
+		{10, route4b{8, 1}},
+		{11, route4b{8, 1}},
+		{12, route4b{12, 2}},
+		{13, route4b{12, 2}},
+		{14, route4b{14, 3}},
+		{15, route4b{14, 3}},
+	} {
+		got, _ := x.LookupSingleLevel(4, tt.addr)
+		if got != tt.want {
+			t.Errorf("lookup(addr=%v) = %v; want %v", tt.addr, got, tt.want)
+		}
 	}
 }
