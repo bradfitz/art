@@ -44,9 +44,13 @@ type route4b struct {
 	l uint8 // prefix len
 }
 
-func (r route4b) Addr() uint64   { return uint64(r.a) }
-func (r route4b) PrefixLen() int { return int(r.l) }
-func (r route4b) Width() int     { return 4 }
+func (r route4b) RouteParams() RouteParams {
+	return RouteParams{
+		Width: 4,
+		Addr:  uint64(r.a),
+		Len:   int(r.l),
+	}
+}
 
 var _ Route = route4b{}
 
@@ -124,5 +128,42 @@ func TestLookup(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("lookup(addr=%v) = %v; want %v", tt.addr, got, tt.want)
 		}
+	}
+}
+
+func TestDelete(t *testing.T) {
+	x := testTable()
+	old, ok := x.DeleteSingleLevel(RouteParams{Width: 4, Addr: 12, Len: 2})
+	if !ok {
+		t.Fatal("didn't delete")
+	}
+	if want := (route4b{12, 2}); old != want {
+		t.Fatalf("deleted %v; want %v", old, want)
+	}
+
+	// Note: the paper seems to have a mistake. 2.1.3. ends with
+	// "After the route to 12/2 is deleted, the ART returns to
+	// Figure 3-2", but none of Figures 3-1, 3-2, 3-3 have just
+	// 8/1 and 14/3 in them. Instead, do what the paper probably
+	// meant to get back to figure 3-2:
+	x = testTable()
+	old, ok = x.DeleteSingleLevel(RouteParams{Width: 4, Addr: 8, Len: 1})
+	if !ok {
+		t.Fatal("didn't delete")
+	}
+	if want := (route4b{8, 1}); old != want {
+		t.Fatalf("deleted %v; want %v", old, want)
+	}
+	want := Table{
+		7:  route4b{12, 2},
+		14: route4b{12, 2},
+		28: route4b{12, 2},
+		29: route4b{12, 2},
+		15: route4b{14, 3},
+		30: route4b{14, 3},
+		31: route4b{14, 3},
+	}
+	if !reflect.DeepEqual(x, want) {
+		t.Errorf("not like Figure 3-2:\n got: %v\nwant: %v\n", x, want)
 	}
 }

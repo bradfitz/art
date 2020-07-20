@@ -20,10 +20,16 @@ func fringeIndex(width int, addr uint64) uint64 {
 }
 
 type Route interface {
-	Addr() uint64
-	PrefixLen() int
-	Width() int
+	RouteParams() RouteParams
 }
+
+type RouteParams struct {
+	Addr  uint64
+	Len   int
+	Width int
+}
+
+func (p RouteParams) baseIndex() uint64 { return baseIndex(p.Width, p.Addr, p.Len) }
 
 type Table []Route
 
@@ -48,17 +54,30 @@ func (x Table) allot(smallestFringeIndex uint64, b uint64, q, r Route) {
 // InsertSingleLevel inserts r into x and reports whether it was able to.
 // (It returns false if it was already occupied).
 func (x Table) InsertSingleLevel(r Route) bool {
-	a, l := r.Addr(), r.PrefixLen()
-	b := baseIndex(r.Width(), a, l)
+	rp := r.RouteParams()
+	b := rp.baseIndex()
 	xb := x[b]
-	if xb != nil && a == xb.Addr() && l == xb.PrefixLen() {
-		return false // already occupied
+	if xb != nil {
+		xbP := xb.RouteParams()
+		if rp.Addr == xbP.Addr && rp.Len == xbP.Len {
+			return false // already occupied
+		}
 	}
-	x.allot(uint64(1)<<r.Width(), b, xb, r)
+	x.allot(uint64(1)<<rp.Width, b, xb, r)
 	return true
 }
 
 func (x Table) LookupSingleLevel(width int, addr uint64) (r Route, ok bool) {
 	r = x[fringeIndex(width, addr)]
 	return r, r != nil
+}
+
+func (x Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
+	b := rp.baseIndex()
+	prev := x[b]
+	if prev == nil {
+		return nil, false
+	}
+	x.allot(uint64(1)<<rp.Width, b, prev, x[b>>1])
+	return prev, true
 }
