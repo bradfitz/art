@@ -32,15 +32,45 @@ type RouteParams struct {
 func (p RouteParams) baseIndex() uint64 { return baseIndex(p.Width, p.Addr, p.Len) }
 
 type Table struct {
+	w  int   // addr width
+	sl []int // stride lengths
 	// TODO: merge r and n into one slice (make a *Table that
 	// implements Route probably?), and probably remove ref.
-	r   []Route
-	n   []*Table // nil for single-level tables
-	ref int      // ref counter
+	r         []Route
+	n         []*Table // nil for single-level tables
+	ref       int      // ref counter
+	parentPtr **Table  // address of parent's pointer to this table
 }
 
-func NewTable(width int) *Table {
-	n := 1 << (width + 1)
+func (x *Table) free() {
+	if x.parentPtr != nil {
+		*x.parentPtr = nil
+		x.parentPtr = nil
+	}
+}
+
+func (x *Table) clone() *Table {
+	if x == nil {
+		return nil
+	}
+	x2 := &Table{
+		w:         x.w,
+		sl:        x.sl,
+		ref:       x.ref,
+		r:         x.r,
+		parentPtr: x.parentPtr,
+	}
+	if x.n != nil {
+		x2.n = make([]*Table, len(x.n))
+		for i, v := range x.n {
+			x2.n[i] = v.clone()
+		}
+	}
+	return x2
+}
+
+func NewTable(stride int) *Table {
+	n := 1 << (stride + 1)
 	return &Table{
 		r: make([]Route, n),
 		n: make([]*Table, n),
@@ -84,12 +114,9 @@ func (x *Table) insertSingle(rp RouteParams, r Route) bool {
 	return true
 }
 
-// for now
-var sl = []int{8, 8, 8, 8}
-
 func (x *Table) Insert(r Route) bool {
 	rp := r.RouteParams()
-	return insert(x, rp.Width, sl, r)
+	return insert(x, rp.Width, x.sl, r)
 }
 
 // insert is multi-level insertion ("Algorithm 5).
@@ -122,7 +149,9 @@ func insert(x0 *Table, w int, sl []int, r Route) bool {
 		}
 		i := fringeIndex(sl[level], s)
 		if x.n[i] == nil {
-			x.n[i] = NewTable(rp.Width)
+			child := NewTable(sl[level+1]) // TODO: or sl[level]?
+			x.n[i] = child
+			child.parentPtr = &x.n[i]
 			x.ref++
 		}
 		x = x.n[i]
@@ -137,14 +166,14 @@ func insert(x0 *Table, w int, sl []int, r Route) bool {
 	return false
 }
 
-func (x *Table) LookupSingleLevel(width int, addr uint64) (r Route, ok bool) {
-	r = x.r[fringeIndex(width, addr)]
+func (x *Table) LookupSingleLevel(addr uint64) (r Route, ok bool) {
+	r = x.r[fringeIndex(x.w, addr)]
 	return r, r != nil
 }
 
 // sl: stride length by level
-func (x *Table) LookupMultiLevel(width int, sl []int, addr uint64) (r Route, ok bool) {
-	r = searchMultiLevel(x, width, sl, addr)
+func (x *Table) LookupMultiLevel(addr uint64) (r Route, ok bool) {
+	r = searchMultiLevel(x, x.w, x.sl, addr)
 	return r, r != nil
 }
 
@@ -190,7 +219,7 @@ func (x *Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
 const maxLevel = 8
 
 func (x *Table) Delete(rp RouteParams) (deleted Route, ok bool) {
-	return delete(x, rp.Width, sl, rp.Addr, rp.Len)
+	return delete(x, rp.Width, x.sl, rp.Addr, rp.Len)
 }
 
 // delete is multi-level deletion (Algorithm 6)
@@ -245,12 +274,12 @@ func delete(x0 *Table, w int, sl []int, a uint64, pl int) (r Route, ok bool) {
 	x.ref--
 	if level > 0 && x.ref == 0 {
 		for {
-			// "Free X" (not needed in Go)
+			x.free()
 			level--        // "get parent level"
 			x = xsv[level] // "get parent array pointer"
 			// "child array is deleted"
 			x.ref--
-			if level <= 0 || x.ref > 0 {
+			if level == 0 || x.ref > 0 {
 				break
 			}
 		}

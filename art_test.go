@@ -6,6 +6,7 @@
 package art
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 )
@@ -27,6 +28,12 @@ func TestBaseIndex(t *testing.T) {
 		{4, 0, 3, 8},
 		{4, 2, 3, 9},
 		{4, 4, 3, 10},
+		{4, 6, 3, 11},
+		{4, 8, 3, 12},
+		// ...
+		{4, 14, 3, 15},
+		{4, 0, 4, 16},
+		{4, 1, 4, 17},
 		// ...
 		{4, 14, 4, 30},
 		{4, 15, 4, 31},
@@ -34,6 +41,8 @@ func TestBaseIndex(t *testing.T) {
 	for _, tt := range tests {
 		if got := baseIndex(tt.w, tt.a, tt.l); got != tt.want {
 			t.Errorf("baseIndex(%v, %v, %v) = %v; want %v", tt.w, tt.a, tt.l, got, tt.want)
+		} else {
+			t.Logf("%2d %04b(%d)/%d", tt.want, tt.a, tt.a, tt.l)
 		}
 	}
 }
@@ -53,7 +62,9 @@ func (r route4b) RouteParams() RouteParams {
 }
 
 func newSingleLevelTestTable() *Table {
-	return &Table{r: make([]Route, 32)}
+	x := NewTable(4)
+	x.w = 4
+	return x
 }
 
 var _ Route = route4b{}
@@ -128,7 +139,7 @@ func TestLookup(t *testing.T) {
 		{14, route4b{14, 3}},
 		{15, route4b{14, 3}},
 	} {
-		got, _ := x.LookupSingleLevel(4, tt.addr)
+		got, _ := x.LookupSingleLevel(tt.addr)
 		if got != tt.want {
 			t.Errorf("lookup(addr=%v) = %v; want %v", tt.addr, got, tt.want)
 		}
@@ -158,18 +169,121 @@ func TestDelete(t *testing.T) {
 	if want := (route4b{8, 1}); old != want {
 		t.Fatalf("deleted %v; want %v", old, want)
 	}
-	want := &Table{
-		r: []Route{
-			7:  route4b{12, 2},
-			14: route4b{12, 2},
-			28: route4b{12, 2},
-			29: route4b{12, 2},
-			15: route4b{14, 3},
-			30: route4b{14, 3},
-			31: route4b{14, 3},
-		},
+	want := testTable()
+	want.r = []Route{
+		7:  route4b{12, 2},
+		14: route4b{12, 2},
+		28: route4b{12, 2},
+		29: route4b{12, 2},
+		15: route4b{14, 3},
+		30: route4b{14, 3},
+		31: route4b{14, 3},
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("not like Figure 3-2:\n got: %v\nwant: %v\n", x, want)
+	}
+}
+
+func newIPv4Table() *Table {
+	t := NewTable(8)
+	t.sl = []int{8, 8, 8, 8} // TODO: also test 16-8-8.
+	t.w = 32
+	return t
+}
+
+type testRoute struct {
+	rp  RouteParams
+	val interface{}
+}
+
+func (tr testRoute) RouteParams() RouteParams { return tr.rp }
+
+func genTestRoutes(width, num int) []Route {
+	var routes []Route
+	rand.Seed(1)
+	dup := map[RouteParams]bool{}
+	for i := 0; i < num; i++ {
+		var rp RouteParams
+		for {
+			rp = RouteParams{
+				Width: width,
+				Len:   rand.Intn(width + 1),
+			}
+			for pl := 0; pl < rp.Len; pl++ {
+				rp.Addr |= uint64(rand.Intn(2)) << ((width - 1) - pl)
+			}
+			if !dup[rp] {
+				dup[rp] = true
+				break
+			}
+		}
+		routes = append(routes, testRoute{rp, i})
+	}
+	return routes
+}
+
+func TestInsertDeleteSingle4bit(t *testing.T) {
+	routes := genTestRoutes(4, 20)
+	for i := 0; i < 2000; i++ {
+		rand.Shuffle(len(routes), func(i, j int) {
+			routes[i], routes[j] = routes[j], routes[i]
+		})
+		x := newSingleLevelTestTable()
+		for i, r := range routes {
+			preInsert := x.clone()
+			if !x.InsertSingleLevel(r) {
+				t.Fatalf("failed to insert %d, %+v", i, r)
+			}
+			rp := r.RouteParams()
+			del, ok := x.DeleteSingleLevel(rp)
+			if !ok {
+				t.Fatalf("failed to delete %d, %+v", i, rp)
+			}
+			if del != r {
+				t.Fatalf("delete of %d deleted %v, want %v", i, del, r)
+			}
+			if !reflect.DeepEqual(x, preInsert) {
+				t.Fatalf("delete of %d (%+v) didn't return table to prior state\n now: %v\n was: %v\n", i, rp, x, preInsert)
+			}
+			if !x.InsertSingleLevel(r) {
+				t.Fatalf("failed to re-insert %d, %+v", i, r)
+			}
+		}
+	}
+}
+
+func TestMultiIPv4(t *testing.T) {
+	routes := genTestRoutes(32, 100)
+	numShuffle := 10
+	if testing.Short() {
+		numShuffle = 2
+	}
+
+	for i := 0; i < numShuffle; i++ {
+		rand.Shuffle(len(routes), func(i, j int) {
+			routes[i], routes[j] = routes[j], routes[i]
+		})
+		x := newIPv4Table()
+		for i, r := range routes {
+			preInsert := x.clone()
+			if !x.Insert(r) {
+				t.Fatalf("failed to insert %d, %+v", i, r)
+			}
+			// TODO: test a get
+			rp := r.RouteParams()
+			del, ok := x.Delete(rp)
+			if !ok {
+				t.Fatalf("failed to delete %d, %+v", i, rp)
+			}
+			if del != r {
+				t.Fatalf("delete of %d deleted %v, want %v", i, del, r)
+			}
+			if !reflect.DeepEqual(x, preInsert) {
+				t.Fatalf("delete of %d (%+v) didn't return table to prior state\n now: %v\n was: %v\n", i, rp, x, preInsert)
+			}
+			if !x.Insert(r) {
+				t.Fatalf("failed to re-insert %d, %+v", i, r)
+			}
+		}
 	}
 }
