@@ -98,9 +98,9 @@ func (x *Table) allot(smallestFringeIndex uint64, b uint64, q, r Route) {
 	x.allot(t, b, q, r) // allot r to right children
 }
 
-// InsertSingleLevel inserts r into x and reports whether it was able to.
+// insertSingleLevel inserts r into x and reports whether it was able to.
 // (It returns false if it was already occupied).
-func (x *Table) InsertSingleLevel(r Route) bool {
+func (x *Table) insertSingleLevel(r Route) bool {
 	return x.insertSingle(r.RouteParams(), r)
 }
 

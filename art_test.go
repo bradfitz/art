@@ -74,7 +74,7 @@ func TestInsertSingleLevel(t *testing.T) {
 
 	// Figure 3-1.
 	r1 := route4b{12, 2}
-	if !x.InsertSingleLevel(r1) {
+	if !x.insertSingleLevel(r1) {
 		t.Errorf("insert %v failed", r1)
 	}
 	want := newSingleLevelTestTable()
@@ -87,7 +87,7 @@ func TestInsertSingleLevel(t *testing.T) {
 
 	// Figure 3-2. ("Now assume we insert a route to prefix 14/3")
 	r2 := route4b{14, 3}
-	if !x.InsertSingleLevel(r2) {
+	if !x.insertSingleLevel(r2) {
 		t.Errorf("insert %v failed", r2)
 	}
 	for _, i := range []int{15, 30, 31} {
@@ -99,7 +99,7 @@ func TestInsertSingleLevel(t *testing.T) {
 
 	// Figure 3-3. ("Now assume we insert a route to prefix 8/1")
 	r3 := route4b{8, 1}
-	if !x.InsertSingleLevel(r3) {
+	if !x.insertSingleLevel(r3) {
 		t.Errorf("insert %v failed", r3)
 	}
 	for _, i := range []int{3, 6, 12, 13, 24, 25, 26, 27} {
@@ -113,9 +113,9 @@ func TestInsertSingleLevel(t *testing.T) {
 // testTable returns the example table set up before section 2.1.2 of the paper.
 func testTable() *Table {
 	x := newSingleLevelTestTable()
-	x.InsertSingleLevel(route4b{12, 2})
-	x.InsertSingleLevel(route4b{14, 3})
-	x.InsertSingleLevel(route4b{8, 1})
+	x.insertSingleLevel(route4b{12, 2})
+	x.insertSingleLevel(route4b{14, 3})
+	x.insertSingleLevel(route4b{8, 1})
 	return x
 }
 
@@ -238,7 +238,7 @@ func TestInsertDeleteSingle4bit(t *testing.T) {
 		x := newSingleLevelTestTable()
 		for i, r := range routes {
 			preInsert := x.clone()
-			if !x.InsertSingleLevel(r) {
+			if !x.insertSingleLevel(r) {
 				t.Fatalf("failed to insert %d, %+v", i, r)
 			}
 			rp := r.RouteParams()
@@ -252,7 +252,7 @@ func TestInsertDeleteSingle4bit(t *testing.T) {
 			if !reflect.DeepEqual(x, preInsert) {
 				t.Fatalf("delete of %d (%+v) didn't return table to prior state\n now: %v\n was: %v\n", i, rp, x, preInsert)
 			}
-			if !x.InsertSingleLevel(r) {
+			if !x.insertSingleLevel(r) {
 				t.Fatalf("failed to re-insert %d, %+v", i, r)
 			}
 		}
