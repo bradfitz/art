@@ -166,13 +166,13 @@ func insert(x0 *Table, w int, sl []int, r Route) bool {
 	return false
 }
 
-func (x *Table) LookupSingleLevel(addr uint64) (r Route, ok bool) {
+func (x *Table) lookupSingleLevel(addr uint64) (r Route, ok bool) {
 	r = x.r[fringeIndex(x.w, addr)]
 	return r, r != nil
 }
 
-// sl: stride length by level
-func (x *Table) LookupMultiLevel(addr uint64) (r Route, ok bool) {
+// Lookup looks up the most specific Route for the given addr.
+func (x *Table) Lookup(addr uint64) (r Route, ok bool) {
 	r = searchMultiLevel(x, x.w, x.sl, addr)
 	return r, r != nil
 }

@@ -119,7 +119,7 @@ func testTable() *Table {
 	return x
 }
 
-func TestLookup(t *testing.T) {
+func TestLookupSingleLevel(t *testing.T) {
 	x := testTable()
 	for _, tt := range []struct {
 		addr uint64
@@ -139,7 +139,7 @@ func TestLookup(t *testing.T) {
 		{14, route4b{14, 3}},
 		{15, route4b{14, 3}},
 	} {
-		got, _ := x.LookupSingleLevel(tt.addr)
+		got, _ := x.lookupSingleLevel(tt.addr)
 		if got != tt.want {
 			t.Errorf("lookup(addr=%v) = %v; want %v", tt.addr, got, tt.want)
 		}
@@ -265,12 +265,27 @@ func TestMultiIPv4(t *testing.T) {
 		})
 		x := newIPv4Table()
 		for i, r := range routes {
+			rp := r.RouteParams()
+			gotBefore, _ := x.Lookup(rp.Addr)
+
 			preInsert := x.clone()
 			if !x.Insert(r) {
 				t.Fatalf("failed to insert %d, %+v", i, r)
 			}
-			// TODO: test a get
-			rp := r.RouteParams()
+
+			got, ok := x.Lookup(rp.Addr)
+			if !ok {
+				t.Fatalf("i=%d; Lookup(%d) failed (%+v)", i, rp.Addr, rp)
+			}
+
+			want := r
+			if gotBefore != nil && gotBefore.(testRoute).rp.Len > rp.Len {
+				want = gotBefore
+			}
+			if got != want {
+				t.Fatalf("i=%d; Lookup(%d) got %v; want %v", i, rp.Addr, got, want)
+			}
+
 			del, ok := x.Delete(rp)
 			if !ok {
 				t.Fatalf("failed to delete %d, %+v", i, rp)
