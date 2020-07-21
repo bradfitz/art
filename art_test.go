@@ -52,19 +52,23 @@ func (r route4b) RouteParams() RouteParams {
 	}
 }
 
+func newSingleLevelTestTable() *Table {
+	return &Table{r: make([]Route, 32)}
+}
+
 var _ Route = route4b{}
 
 func TestInsertSingleLevel(t *testing.T) {
-	x := make(Table, 32)
+	x := newSingleLevelTestTable()
 
 	// Figure 3-1.
 	r1 := route4b{12, 2}
 	if !x.InsertSingleLevel(r1) {
 		t.Errorf("insert %v failed", r1)
 	}
-	want := make(Table, 32)
+	want := newSingleLevelTestTable()
 	for _, i := range []int{7, 14, 15, 28, 29, 30, 31} {
-		want[i] = r1
+		want.r[i] = r1
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("wrong after 1st step\n got: %v\nwant: %v\n", x, want)
@@ -76,7 +80,7 @@ func TestInsertSingleLevel(t *testing.T) {
 		t.Errorf("insert %v failed", r2)
 	}
 	for _, i := range []int{15, 30, 31} {
-		want[i] = r2
+		want.r[i] = r2
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("wrong after 2nd step\n got: %v\nwant: %v\n", x, want)
@@ -88,7 +92,7 @@ func TestInsertSingleLevel(t *testing.T) {
 		t.Errorf("insert %v failed", r3)
 	}
 	for _, i := range []int{3, 6, 12, 13, 24, 25, 26, 27} {
-		want[i] = r3
+		want.r[i] = r3
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("wrong after 3rd step\n got: %v\nwant: %v\n", x, want)
@@ -96,8 +100,8 @@ func TestInsertSingleLevel(t *testing.T) {
 }
 
 // testTable returns the example table set up before section 2.1.2 of the paper.
-func testTable() Table {
-	x := make(Table, 32)
+func testTable() *Table {
+	x := newSingleLevelTestTable()
 	x.InsertSingleLevel(route4b{12, 2})
 	x.InsertSingleLevel(route4b{14, 3})
 	x.InsertSingleLevel(route4b{8, 1})
@@ -154,14 +158,16 @@ func TestDelete(t *testing.T) {
 	if want := (route4b{8, 1}); old != want {
 		t.Fatalf("deleted %v; want %v", old, want)
 	}
-	want := Table{
-		7:  route4b{12, 2},
-		14: route4b{12, 2},
-		28: route4b{12, 2},
-		29: route4b{12, 2},
-		15: route4b{14, 3},
-		30: route4b{14, 3},
-		31: route4b{14, 3},
+	want := &Table{
+		r: []Route{
+			7:  route4b{12, 2},
+			14: route4b{12, 2},
+			28: route4b{12, 2},
+			29: route4b{12, 2},
+			15: route4b{14, 3},
+			30: route4b{14, 3},
+			31: route4b{14, 3},
+		},
 	}
 	if !reflect.DeepEqual(x, want) {
 		t.Errorf("not like Figure 3-2:\n got: %v\nwant: %v\n", x, want)
