@@ -11,6 +11,15 @@
 // Warning: this is a work-in-progress; see https://github.com/bradfitz/art#status
 package art
 
+// TODO: section 3.1: Element Consolidation. We currently store 3
+// words (2 for the Route interface, 1 for the *Table) per entry; the
+// paper does 1. Without doing unsafe, we could get at least down to 2
+// by making a child *Table type that implements Route.
+
+// TODO: section 3.2: path compression; IPv6 tests.
+
+// TODO: IPv4 + IPv6 constructors
+
 func baseIndex(width int, addr uint64, prefixLen int) uint64 {
 	return (addr >> uint64(width-prefixLen)) + (1 << uint64(prefixLen))
 }
