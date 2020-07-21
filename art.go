@@ -151,3 +151,75 @@ func (x *Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
 	x.allot(uint64(1)<<rp.Width, b, prev, x.r[b>>1])
 	return prev, true
 }
+
+const maxLevel = 8
+
+func (x *Table) Delete(rp RouteParams) (deleted Route, ok bool) {
+	return delete(x, rp.Width, sl, rp.Addr, rp.Len)
+}
+
+// delete is multi-level deletion (Algorithm 6)
+//
+// w: address length
+// sl: stride length by level
+// a: destination address
+// pl: prefix length
+//
+// It returns the deleted route and whether it was successful.
+func delete(x0 *Table, w int, sl []int, a uint64, pl int) (r Route, ok bool) {
+	x := x0
+	xsv := [maxLevel]*Table{0: x} // parent array pointers
+	ss := 0                       // stride length summation
+	var s uint64                  // stride
+	level := 0
+	var i uint64             // index
+	var isv [maxLevel]uint64 // parent indices
+
+	// Default route.
+	if a == 0 && pl == 0 {
+		if r = x.r[1]; r == nil {
+			return nil, false
+		}
+		x.r[1] = nil
+		return r, true
+	}
+
+	for {
+		ss += sl[level]
+		s = (a >> (w - ss)) & ((1 << sl[level]) - 1)
+		if pl <= ss {
+			break
+		}
+		i = fringeIndex(sl[level], s)
+		isv[level] = i
+		if x.n[i] == nil {
+			return nil, false
+		}
+		xsv[level] = x
+		x = x.n[i]
+		level++
+	}
+
+	ss -= sl[level]
+	r, ok = x.DeleteSingleLevel(RouteParams{Width: sl[level], Addr: s, Len: pl - ss})
+	if !ok {
+		return nil, false
+	}
+
+	// "Free arrays if necessary"
+	x.ref--
+	if level > 0 && x.ref == 0 {
+		for {
+			// "Free X" (not needed in Go)
+			level--        // "get parent level"
+			x = xsv[level] // "get parent array pointer"
+			// "child array is deleted"
+			x.ref--
+			if level <= 0 || x.ref > 0 {
+				break
+			}
+		}
+	}
+
+	return r, true
+}
