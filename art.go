@@ -32,9 +32,19 @@ type RouteParams struct {
 func (p RouteParams) baseIndex() uint64 { return baseIndex(p.Width, p.Addr, p.Len) }
 
 type Table struct {
+	// TODO: merge r and n into one slice (make a *Table that
+	// implements Route probably?), and probably remove ref.
 	r   []Route
 	n   []*Table // nil for single-level tables
 	ref int      // ref counter
+}
+
+func NewTable(width int) *Table {
+	n := 1 << (width + 1)
+	return &Table{
+		r: make([]Route, n),
+		n: make([]*Table, n),
+	}
 }
 
 // allot allots route r replacing q at base index b.
@@ -78,16 +88,27 @@ func (x *Table) insertSingle(rp RouteParams, r Route) bool {
 var sl = []int{8, 8, 8, 8}
 
 func (x *Table) Insert(r Route) bool {
+	rp := r.RouteParams()
+	return insert(x, rp.Width, sl, r)
+}
+
+// insert is multi-level insertion ("Algorithm 5).
+//
+// w: width of address
+// sl: stride length by level
+//
+// It reports whether the insertion was successful.
+func insert(x0 *Table, w int, sl []int, r Route) bool {
 	level := 0
 	ss := 0 // stride length summation
-	X := x  // "Array X <- X0", level 0 array
+	x := x0 // "Array X <- X0", level 0 array
 
 	rp := r.RouteParams()
 	if rp.Addr == 0 && rp.Len == 0 {
-		if X.r[1] != nil {
-			return false
+		if x.r[1] != nil {
+			return false // already had a default route
 		}
-		X.r[1] = r
+		x.r[1] = r // default route
 		return true
 	}
 	var s uint64 // stride
@@ -100,20 +121,17 @@ func (x *Table) Insert(r Route) bool {
 			break
 		}
 		i := fringeIndex(sl[level], s)
-		if X.n[i] == nil {
-			X.n[i] = &Table{
-				r: make([]Route, len(x.r)),
-				n: make([]*Table, len(x.r)), // TODO: not necessary at leafs
-			}
-			X.ref++
+		if x.n[i] == nil {
+			x.n[i] = NewTable(rp.Width)
+			x.ref++
 		}
-		X = X.n[i]
+		x = x.n[i]
 		level++
 	}
 
 	ss -= sl[level]
 	if x.insertSingle(RouteParams{Width: sl[level], Addr: s, Len: rp.Len - ss}, r) {
-		X.ref++ // new route entry
+		x.ref++ // new route entry
 		return true
 	}
 	return false
