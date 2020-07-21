@@ -184,9 +184,16 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func newIPv4Table() *Table {
+func newIPv4Table_8() *Table {
 	t := NewTable(8)
-	t.sl = []int{8, 8, 8, 8} // TODO: also test 16-8-8.
+	t.sl = []int{8, 8, 8, 8}
+	t.w = 32
+	return t
+}
+
+func newIPv4Table_16_8() *Table {
+	t := NewTable(16)
+	t.sl = []int{16, 8, 8}
 	t.w = 32
 	return t
 }
@@ -252,7 +259,15 @@ func TestInsertDeleteSingle4bit(t *testing.T) {
 	}
 }
 
-func TestMultiIPv4(t *testing.T) {
+func TestMultiIPv4_stride8(t *testing.T) {
+	testMultiIPv4(t, newIPv4Table_8)
+}
+
+func TestMultiIPv4_stride16_8(t *testing.T) {
+	testMultiIPv4(t, newIPv4Table_16_8)
+}
+
+func testMultiIPv4(t *testing.T, newTable func() *Table) {
 	routes := genTestRoutes(32, 100)
 	numShuffle := 10
 	if testing.Short() {
@@ -263,7 +278,7 @@ func TestMultiIPv4(t *testing.T) {
 		rand.Shuffle(len(routes), func(i, j int) {
 			routes[i], routes[j] = routes[j], routes[i]
 		})
-		x := newIPv4Table()
+		x := newTable()
 		for i, r := range routes {
 			rp := r.RouteParams()
 			gotBefore, _ := x.Lookup(rp.Addr)
