@@ -19,14 +19,17 @@ func fringeIndex(width int, addr uint64) uint64 {
 	return baseIndex(width, addr, width)
 }
 
+// A Route is an entry in the routing table.
 type Route interface {
+	// RouteParams returns the properties of the routing table entry.
 	RouteParams() RouteParams
 }
 
+// RouteParams are the properties of the routing table entry.
 type RouteParams struct {
-	Width int // bits of address
-	Addr  uint64
-	Len   int // prefix length of route
+	Width int    // bits of routable porition address (32-bit for IPv4, 64-bit for IPv6)
+	Addr  uint64 // the destination address
+	Len   int    // prefix length of route (e.g. 24 for a 192.168.0.0/24)
 }
 
 func (p RouteParams) baseIndex() uint64 { return baseIndex(p.Width, p.Addr, p.Len) }
@@ -206,7 +209,7 @@ func searchMultiLevel(x0 *Table, w int, sl []int, a uint64) (r Route) {
 	}
 }
 
-func (x *Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
+func (x *Table) deleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
 	b := rp.baseIndex()
 	prev := x.r[b]
 	if prev == nil {
@@ -218,6 +221,8 @@ func (x *Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
 
 const maxLevel = 8
 
+// Delete deletes the route described by the parameters.
+// If a route was deleted, it returns the deleted route.
 func (x *Table) Delete(rp RouteParams) (deleted Route, ok bool) {
 	return delete(x, rp.Width, x.sl, rp.Addr, rp.Len)
 }
@@ -265,7 +270,7 @@ func delete(x0 *Table, w int, sl []int, a uint64, pl int) (r Route, ok bool) {
 	}
 
 	ss -= sl[level]
-	r, ok = x.DeleteSingleLevel(RouteParams{Width: sl[level], Addr: s, Len: pl - ss})
+	r, ok = x.deleteSingleLevel(RouteParams{Width: sl[level], Addr: s, Len: pl - ss})
 	if !ok {
 		return nil, false
 	}

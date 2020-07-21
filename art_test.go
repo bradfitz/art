@@ -146,9 +146,9 @@ func TestLookupSingleLevel(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
+func TestDeleteSingleLevel(t *testing.T) {
 	x := testTable()
-	old, ok := x.DeleteSingleLevel(RouteParams{Width: 4, Addr: 12, Len: 2})
+	old, ok := x.deleteSingleLevel(RouteParams{Width: 4, Addr: 12, Len: 2})
 	if !ok {
 		t.Fatal("didn't delete")
 	}
@@ -162,7 +162,7 @@ func TestDelete(t *testing.T) {
 	// 8/1 and 14/3 in them. Instead, do what the paper probably
 	// meant to get back to figure 3-2:
 	x = testTable()
-	old, ok = x.DeleteSingleLevel(RouteParams{Width: 4, Addr: 8, Len: 1})
+	old, ok = x.deleteSingleLevel(RouteParams{Width: 4, Addr: 8, Len: 1})
 	if !ok {
 		t.Fatal("didn't delete")
 	}
@@ -242,7 +242,7 @@ func TestInsertDeleteSingle4bit(t *testing.T) {
 				t.Fatalf("failed to insert %d, %+v", i, r)
 			}
 			rp := r.RouteParams()
-			del, ok := x.DeleteSingleLevel(rp)
+			del, ok := x.deleteSingleLevel(rp)
 			if !ok {
 				t.Fatalf("failed to delete %d, %+v", i, rp)
 			}
