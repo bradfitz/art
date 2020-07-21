@@ -142,6 +142,41 @@ func (x *Table) LookupSingleLevel(width int, addr uint64) (r Route, ok bool) {
 	return r, r != nil
 }
 
+// sl: stride length by level
+func (x *Table) LookupMultiLevel(width int, sl []int, addr uint64) (r Route, ok bool) {
+	r = searchMultiLevel(x, width, sl, addr)
+	return r, r != nil
+}
+
+// Algorithm 7
+//
+// Returns longest prefix matching route pointer or nil
+func searchMultiLevel(x0 *Table, w int, sl []int, a uint64) (r Route) {
+	lmr := x0.r[1] // longest matching route
+	x := x0
+	ss := 0 // stride length summation
+	var s uint64
+	level := 0
+	var i uint64 // index
+	for {
+		ss += sl[level]
+		s = (a >> (w - ss)) & ((1 << sl[level]) - 1)
+		i = fringeIndex(sl[level], s)
+		if x.n[i] != nil {
+			// "update current longest matching route"
+			if x.r[i] != nil {
+				lmr = x.r[i]
+			}
+			x = x.n[i]
+			level++
+		} else if x.r[i] != nil {
+			return x.r[i]
+		} else {
+			return lmr // pr == pn == nil
+		}
+	}
+}
+
 func (x *Table) DeleteSingleLevel(rp RouteParams) (deleted Route, ok bool) {
 	b := rp.baseIndex()
 	prev := x.r[b]
