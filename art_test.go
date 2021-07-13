@@ -317,3 +317,55 @@ func testMultiIPv4(t *testing.T, newTable func() *Table) {
 		}
 	}
 }
+
+func benchInsertRemoveIPv4(b *testing.B, newTable func() *Table) {
+	t := newTable()
+	b.ReportAllocs()
+	uniq := 100
+	routes := genTestRoutes(32, uniq)
+	for i := 0; i < b.N; i++ {
+		v := routes[i%uniq]
+		if !t.Insert(v) {
+			b.Error("Insertion failed")
+		}
+		if _, ok := t.Delete(v.RouteParams()); !ok {
+			b.Error("Removal failed")
+		}
+	}
+}
+
+func BenchmarkMultiIPv4_stride8(b *testing.B) {
+	b.Run("InsertRemove", func(b *testing.B) {
+		benchInsertRemoveIPv4(b, newIPv4Table_8)
+	})
+	b.Run("Search", func(b *testing.B) {
+		benchSearchIPv4(b, newIPv4Table_8)
+	})
+}
+
+func BenchmarkMultiIPv4_stride16_8(b *testing.B) {
+	b.Run("InsertRemove", func(b *testing.B) {
+		benchInsertRemoveIPv4(b, newIPv4Table_16_8)
+	})
+	b.Run("Search", func(b *testing.B) {
+		benchSearchIPv4(b, newIPv4Table_16_8)
+	})
+}
+
+func benchSearchIPv4(b *testing.B, newTable func() *Table) {
+	t := newTable()
+	uniq := 100
+	routes := genTestRoutes(32, 100)
+	for _, route := range routes {
+		if !t.Insert(route) {
+			b.Error("Insertion failed")
+		}
+	}
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		v := routes[i%uniq]
+		if _, ok := t.Lookup(v.RouteParams().Addr); !ok {
+			b.Error("Lookup failed")
+		}
+	}
+}
