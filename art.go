@@ -6,7 +6,7 @@
 // Package art implements the Allotment Routing Table, a
 // "A Fast Free Multibit Trie Based Routing Table".
 //
-// See https://cseweb.ucsd.edu//~varghese/TEACH/cs228/artlookup.pdf
+// See https://cseweb.ucsd.edu/~varghese/TEACH/cs228/artlookup.pdf
 //
 // Warning: this is a work-in-progress; see https://github.com/bradfitz/art#status
 package art
