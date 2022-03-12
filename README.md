@@ -2,7 +2,7 @@
 
 A Go implementation of ART ("A Fast Free Multibit Trie Based Routing Table").
 
-See https://www.hariguchi.org/art/art.pdf
+See https://cseweb.ucsd.edu/~varghese/TEACH/cs228/artlookup.pdf
 
 Godoc at http://godoc.org/github.com/bradfitz/art
 
